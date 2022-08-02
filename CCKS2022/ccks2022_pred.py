@@ -28,10 +28,6 @@ logging.basicConfig(filename='./log/ccks2022-predict-%s.log' % (strftime('%Y-%m-
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-labels = ['Abdominal+Fat', 'Artificial+Intelligence', 'Culicidae',
-       ' Humboldt states', 'Diabetes+Mellitus', 'Fasting',
-       'Gastrointestinal+Microbiome', 'Inflammation', 'MicroRNAs', 'Neoplasms',
-       'Parkinson+Disease', 'psychology']
 
 
 class InputExample(object):
@@ -178,14 +174,6 @@ def convert_examples_to_features(examples, max_seq_length, tokenizer, my_tokeniz
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
 
-        # if ex_index < 5:
-        #     logger.info("*** Example ***")
-        #     logger.info("guid: %s" % (example.guid))
-            # logger.info("tokens: %s" % " ".join([str(x) for x in tokens]))
-            # logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-            # logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-            # logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-
         features.append(
             InputFeatures(input_ids=input_ids,
                           input_mask=input_mask,
@@ -277,11 +265,13 @@ def main():
     max_seq_length = args.max_seq_length
     eval_batch_size = args.eval_batch_size
     
+    # 仅保存参数权重
     # config = BertConfig(os.path.join(args.trained_model_dir, 'bert_config.json'))
-    # model = BertForSequenceClassification(config, num_labels=num_labels)
+    # model = BertForSequenceClassification(config, num_labels=2)
     # model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
     # logger.info('finish trained model loading!')
 
+    # 保存模型的网络和参数权重
     model = torch.load(os.path.join(trained_model_dir, "pytorch_model.bin"))
 
     model.to(device)
@@ -339,9 +329,3 @@ def main():
 
 if __name__ == "__main__":
     prob, res = main()
-    # for i in range(len(prob)):
-    #     print("【id-" + str(i) + "-" + str(labels[res[i]]) + "】", end='\t')
-    #     info = "【id-" + str(i) + "-" + str(labels[res[i]]) + "】\t"
-    #     for j in range(len(labels) - 1):
-    #         print(labels[j] + ": " + str(prob[i][j] * 100.0) + "%", end='  ')
-    #     print()
