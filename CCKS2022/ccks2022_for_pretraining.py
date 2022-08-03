@@ -17,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""BERT finetuning runner."""
+"""BERT pretraining runner."""
 
 from __future__ import absolute_import, division, print_function
 
@@ -482,15 +482,16 @@ def main():
     if args.trained_model_dir:
         config = BertConfig(os.path.join(args.trained_model_dir, 'bert_config.json'))
         model = NezhaForPretrain(config)
+        model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
         # 重载模型字典
         origin_state_dict = model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
-        state_dict = {}
-        for key in origin_state_dict:
-            val = origin_state_dict[key]
-            new_key = key.replace('.bert', "")
-            state_dict[new_key] = val
-        state_dict = origin_state_dict
-        model.load_state_dict(state_dict, strict=False)
+        # state_dict = {}
+        # for key in origin_state_dict:
+        #     val = origin_state_dict[key]
+        #     new_key = key.replace('.bert', "")
+        #     state_dict[new_key] = val
+        # state_dict = origin_state_dict
+        # model.load_state_dict(state_dict, strict=False)
         logger.info('finish trained model loading!')
     elif args.bert_model:
         print('init model...')
@@ -564,8 +565,6 @@ def main():
         else:
             train_sampler = DistributedSampler(train_data)
         train_dataloader = DataLoader(train_data, sampler=train_sampler, batch_size=args.train_batch_size)
-        val_true = np.asarray(pd.read_csv(os.path.join(args.data_dir, "dev.tsv"), encoding='utf8', sep='\t').iloc[:,
-                              0:1]).transpose().tolist()[0]
 
         # 初始化
         # fgm = FGM(model)

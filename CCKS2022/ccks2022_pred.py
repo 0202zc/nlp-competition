@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from modeling_nezha_ccks2022 import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+from modeling import NezhaForSequenceClassificationGRUToAttention, NezhaForSequenceClassificationAttentionToGRU
 from optimization import BertAdam, warmup_linear
 
 logging.basicConfig(filename='./log/ccks2022-predict-%s.log' % (strftime('%Y-%m-%d-%H-%M-%S', localtime(time()))),
@@ -228,6 +229,7 @@ def main():
                         default=1,
                         type=int,
                         help="Total batch size for eval.")
+    # parser.add_argument('--model', type=int, default=1, help="model for 1: NezhaForSequenceClassificationGRUToAttention and 2: NezhaForSequenceClassificationAttentionToGRU.\n", required=True)
     args = parser.parse_args()
 
     processors = {
@@ -268,6 +270,7 @@ def main():
     # 仅保存参数权重
     # config = BertConfig(os.path.join(args.trained_model_dir, 'bert_config.json'))
     # model = BertForSequenceClassification(config, num_labels=2)
+    # model = NezhaForSequenceClassificationGRUToAttention(config, num_labels=2) if args.model == 1 else NezhaForSequenceClassificationAttentionToGRU(config, num_labels=2)
     # model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
     # logger.info('finish trained model loading!')
 

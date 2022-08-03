@@ -993,23 +993,20 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         # self.lstm = nn.LSTM(config.hidden_size, config.hidden_size, num_layers=2, bidirectional=True)
-        self.classifier = nn.Linear(config.hidden_size * 3, num_labels)
+        self.classifier = nn.Linear(config.hidden_size * 2, num_labels)
         self.apply(self.init_bert_weights)
-        self.transformer = transformer.Transformer(max_len=512, hidden_size=config.hidden_size * 2)
+        self.transformer = transformer.Transformer(max_len=512, hidden_size=config.hidden_size)
         # self.prefix = nn.Parameter(torch.randn(16, 8, config.hidden_size))
         self.softmax = nn.Softmax(dim=-1)
         self.gru = nn.GRU(config.hidden_size, config.hidden_size, num_layers=2, bidirectional=True)
         
     def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-        # print(self.prefix.shape)
-        # print(input_ids.shape)wobu
-        # inputs = torch.cat([self.prefix, input_ids], dim=1) + '[MASK]'
-        # _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
         encoder_out, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-        gru_out, _ = self.gru(encoder_out)
-        output = self.transformer(gru_out)
+        output = self.transformer(encoder_out)
+        gru_out, _ = self.gru(output)
         resnet = torch.cat((pooled_output, output), axis=1)
         logits = self.classifier(resnet)
+        # logits = self.classifier(pooled_output)
         logits = self.dropout(logits)
         prob = self.softmax(logits)
         if labels is not None:
@@ -1030,21 +1027,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
     #         # loss_fct = CrossEntropyLoss()
     #         loss_fct = focal_loss.FocalLoss()
     #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-    #         return loss
-    #     else:
-    #         return logits
-
-    # def forward(self, input_ids, token_type_ids=None, attention_mask=None, labels=None):
-    #     # _, pooled_output = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-    #     encoder_out, text_cls = self.bert(input_ids, token_type_ids, attention_mask, output_all_encoded_layers=False)
-    #     out, _ = self.lstm(encoder_out)
-    #     task_output = self.dropout(out)
-    #     logits = self.classifier(task_output[:, -1, :])
-    #     if labels is not None:
-    #         # loss_fct = CrossEntropyLoss()
-    #         loss_fct = focal_loss.FocalLoss()
-    #         loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-    #         # return logits, loss
     #         return loss
     #     else:
     #         return logits

@@ -42,8 +42,8 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 
 from file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from modeling_nezha_ccks2022 import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, \
-    CONFIG_NAME
+from modeling_nezha_ccks2022 import BertForSequenceClassification, BertConfig, WEIGHTS_NAME, CONFIG_NAME
+from modeling import NezhaForSequenceClassificationAttentionToGRU, NezhaForSequenceClassificationGRUToAttention
 from optimization import BertAdam, warmup_linear
 from sklearn.metrics import precision_score, recall_score, f1_score
 
@@ -148,8 +148,6 @@ class TextClfProcessor(DataProcessor):
             if i == 0:
                 continue
             guid = "%s-%s" % (set_type, i)
-            print(line)
-            logger.info(line)
             text_a = line[1]
             label = line[0]
             if set_type == 'train' and (label not in self.label_list):
@@ -401,6 +399,7 @@ def main():
                              "Positive power of 2: static loss scaling value.\n")
     parser.add_argument('--server_ip', type=str, default='', help="Can be used for distant debugging.")
     parser.add_argument('--server_port', type=str, default='', help="Can be used for distant debugging.")
+    parser.add_argument('--model', type=int, default=1, help="model for 1: NezhaForSequenceClassificationGRUToAttention and 2: NezhaForSequenceClassificationAttentionToGRU.\n", required=True)
     args = parser.parse_args()
 
     if args.server_ip and args.server_port:
@@ -501,7 +500,8 @@ def main():
                                                                    'distributed_{}'.format(args.local_rank))
     if args.trained_model_dir:
         config = BertConfig(os.path.join(args.trained_model_dir, 'bert_config.json'))
-        model = BertForSequenceClassification(config, num_labels=num_labels)
+        # model = BertForSequenceClassification(config, num_labels=num_labels)
+        model = NezhaForSequenceClassificationGRUToAttention(config, num_labels=num_labels) if args.model == 1 else NezhaForSequenceClassificationAttentionToGRU(config, num_labels=num_labels)
         model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
         # 重载模型字典
         # origin_state_dict = model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model.bin')))
@@ -516,7 +516,8 @@ def main():
     elif args.bert_model:
         print('init model...')
         bert_config = BertConfig.from_json_file(os.path.join(args.bert_model, 'bert_config.json'))
-        model = BertForSequenceClassification(bert_config, num_labels=num_labels)
+        # model = BertForSequenceClassification(bert_config, num_labels=num_labels)
+        model = NezhaForSequenceClassificationGRUToAttention(bert_config, num_labels=num_labels) if args.model == 1 else NezhaForSequenceClassificationAttentionToGRU(bert_config, num_labels=num_labels)
         utils.torch_show_all_params(model)
         utils.torch_init_model(model, os.path.join(args.bert_model, 'pytorch_model.bin'))
 
