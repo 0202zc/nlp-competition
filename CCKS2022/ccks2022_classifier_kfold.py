@@ -698,9 +698,7 @@ def main():
                     # loss_sum = model(input_ids, segment_ids, input_mask, label_ids)  # 累加对抗训练的梯度
                     # loss_sum.backward()
                     # fgm.restore()  # 恢复Embedding的参数
-
-                    ema.update()
-
+                    
                     tr_loss += loss.item()
                     nb_tr_examples += input_ids.size(0)
                     nb_tr_steps += 1
@@ -714,6 +712,7 @@ def main():
                             for param_group in optimizer.param_groups:
                                 param_group['lr'] = lr_this_step
                         optimizer.step()
+                        ema.update()
                         optimizer.zero_grad()
                         # scaler.step(optimizer)
                         # scaler.update()
