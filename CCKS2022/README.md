@@ -101,3 +101,43 @@ F1-Score
 | 18    | 小邋遢                             | 0.696 | 0.694     | 0.699  | 0.789    | 0.696 | 2022-07-31 09:08 |
 | 19    | 海淀咔了咪                         | 0.694 | 0.708     | 0.681  | 0.793    | 0.694 | 2022-07-26 21:51 |
 | 20    | 大帆船的团队                       | 0.692 | 0.591     | 0.835  | 0.743    | 0.692 | 2022-07-29 09:24 |
+
+# 结果复现说明
+
+## 1. Requirements
+
+- `pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0`
+- `transformers>=4.21.0`
+- `boto3`
+- `jieba`
+- `jupyter`, `jupyterlab`
+- `pandas`, `numpy`, `scikit-learn`
+- `json`
+
+## 2. 代码执行步骤
+
+> 全部流程都在 `baseline.ipynb` 中
+
+### 2.1 训练部分
+
+- 在 `CCKS2022/` 目录下打开 `cmd`，执行 `jupyter lab`
+- 打开 `baseline.ipynb`
+  - 执行继续预训练，共 27 epochs；
+  - 微调训练：
+    - 【模型一】非k折训练 5 epochs，并执行结果预测
+    - 【模型二】非k折训练 7 epochs，并执行结果预测，输出预测结果文件 `test_results.txt`；
+    - 【模型二】5折训练，每折 6 epochs（其设定为自动计算出预测结果，保存为输出目录的 `test_results.txt`）。
+
+>  注：
+>
+>  - **保存路径按需调整**，可默认
+>  - 模型一：nezha-base-wwm + GRU -> attention，残差
+>  - 模型二：nezha-base-wwm + attention -> GRU，残差
+
+### 2.2 结果融合及格式转换
+
+选择 5 折交叉验证的 `fold2` 与非 K 折模型一、二的结果，与非 k 折训练的结果进行融合：
+
+- 基于 `baseline.ipynb` 将三个模型结果进行融合
+- 然后在 `baseline.ipynb` 中，将融合结果导出为提交格式文件 `result/result.txt`
+
