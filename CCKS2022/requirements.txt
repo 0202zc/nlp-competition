@@ -1,0 +1,12 @@
+torch==1.11.0
+torchvision==0.12.0
+torchaudio==0.11.0
+cudatoolkit=11.3
+transformers>=4.21.0
+boto3
+jieba
+jupyter
+jupyterlab
+pandas
+numpy
+scikit-learn
