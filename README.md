@@ -9,3 +9,4 @@ NLP比赛的相关记录
 | [ccf-bdci-qianyan-qm-2021](https://github.com/0202zc/nlp-competition/tree/main/ccf-bdci-qianyan-qm-2021) | [千言-问题匹配鲁棒性评测](https://www.datafountain.cn/competitions/516) |
 | [ccf-bdci-samll-sample-classification-2022](https://github.com/0202zc/nlp-competition/tree/main/ccf-bdci-samll-sample-classification-2022) | [小样本数据分类任务](https://www.datafountain.cn/competitions/582) |
 
+- `tricks/`：比赛常用技巧
