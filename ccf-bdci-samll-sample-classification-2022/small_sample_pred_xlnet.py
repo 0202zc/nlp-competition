@@ -268,13 +268,13 @@ def main():
     processor = processors[task_name]()
 
     trained_model_dir = args.trained_model_dir
-    tokenizer = tokenization.BertTokenizer(vocab_file=os.path.join(trained_model_dir, 'vocab.txt'), do_lower_case=True)
+    tokenizer = AutoTokenizer.from_pretrained(trained_model_dir)
     logger.info('vocab size is %d' % (len(tokenizer.vocab)))
 
     max_seq_length = args.max_seq_length
     eval_batch_size = args.eval_batch_size
 
-    bert_config = AutoConfig.from_pretrained(args.bert_model)
+    bert_config = AutoConfig.from_pretrained(trained_model_dir)
     model = XLNetPrefixForSequenceClassification(bert_config, num_labels=36)
     model.load_state_dict(torch.load(os.path.join(args.trained_model_dir, 'pytorch_model_0.bin')))
     logger.info('finish trained model loading!')
@@ -311,7 +311,7 @@ def main():
         segment_ids = segment_ids.to(device)
 
         with torch.no_grad():
-            logits, prob = model(input_ids, segment_ids, input_mask)
+            logits, prob = model(input_ids=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
 
         logits = logits.detach().cpu().numpy()
         prob = prob.detach().cpu().numpy()

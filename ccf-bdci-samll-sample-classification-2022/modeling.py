@@ -13,7 +13,7 @@ from transformers import RobertaModel, RobertaPreTrainedModel
 from transformers import XLNetPreTrainedModel
 from transformers.modeling_outputs import SequenceClassifierOutput
 from prefix_encoder import PrefixEncoder
-from mixup import SenMixUp
+from mixup import SenMixUp, MixUp
 
 from tools.utils import torch_show_all_params
 
@@ -61,14 +61,19 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         self.num_labels = num_labels
         self.config = config
         self.hidden_size = config.d_model
-        self.pre_seq_len = 8
+        self.pre_seq_len = 6
         self.post_seq_len = 0
+
+        self.enable_mixup = False
+
+        if self.enable_mixup:
+            self.mixup = MixUp(method='encoder')
 
         self.transformer = XLNetModel(config)
         # self.sequence_summary = SequenceSummary(config)
         # self.logits_proj = nn.Linear(self.hidden_size, self.num_labels)
         self.softmax = nn.Softmax(dim=-1)
-        self.transformer_encoder = Transformer(max_len=496 + self.pre_seq_len + self.post_seq_len,
+        self.transformer_encoder = Transformer(max_len=486 + self.pre_seq_len + self.post_seq_len,
                                                hidden_size=self.hidden_size)
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size * 2, self.hidden_size),
@@ -99,6 +104,7 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
             output_attentions=None,
             output_hidden_states=None,
             return_dict=None,
+            rdrop=False,
             **kwargs,  # delete when `use_cache` is removed in XLNetModel
     ):
         r"""
@@ -150,6 +156,9 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         )
         output = transformer_outputs[0]
 
+        if self.enable_mixup:
+            output = self.mixup.encode(output, [input_ids])
+
         cls_embedding = output[:, self.pre_seq_len, :]
         first_token_hidden_states = output[:, 0, :]
         last_token_hidden_states = output[:, -1, :]
@@ -169,8 +178,14 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         prob = self.softmax(logits)
 
         if labels is not None:
-            loss_fct = FocalLoss(class_num=self.num_labels)
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            if rdrop:
+                from rdrop_loss import RDropLoss
+
+                loss_fct = RDropLoss(class_num=self.num_labels)
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            else:
+                loss_fct = FocalLoss(class_num=self.num_labels)
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             return loss
 
         return logits, prob
@@ -750,15 +765,86 @@ class BertForSequenceClassification(BertPreTrainedModel):
         )
 
 
-class BertPrefixForSequenceClassification(BertPreTrainedModel):
+class BertPrefixForPatentsClassification(BertPreTrainedModel):
     def __init__(self, config, num_class):
-        super(BertPrefixForSequenceClassification, self).__init__(config)
-        self.pre_seq_len = 16
+        super(BertPrefixForPatentsClassification, self).__init__(config)
+        self.pre_seq_len = 8
         self.num_class = num_class
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size * 2, num_class)
-        self.transformer = Transformer(max_len=512 - self.pre_seq_len, hidden_size=config.hidden_size)
+        self.transformer = Transformer(max_len=358 - self.pre_seq_len, hidden_size=config.hidden_size)
+        # self.gru = nn.GRU(config.hidden_size, config.hidden_size, num_layers=1, bidirectional=True)
+        self.softmax = nn.Softmax(dim=-1)
+        self.rdrop = True
+        # self.apply(self.init_bert_weights)
+        self.post_init()
+
+    def forward(self,
+                input_ids=None,
+                attention_mask=None,
+                token_type_ids=None,
+                position_ids=None,
+                head_mask=None,
+                inputs_embeds=None,
+                labels=None,
+                output_attentions=None,
+                output_hidden_states=None,
+                return_dict=None):
+
+        batch_size = input_ids.shape[0]
+        # past_key_values = self.get_prompt(batch_size=batch_size)
+        prefix_attention_mask = torch.ones(batch_size, self.pre_seq_len).to(self.bert.device)
+        attention_mask = torch.cat((prefix_attention_mask, attention_mask), dim=1)
+        # input_ids = torch.cat((torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), input_ids), dim=1)
+        assert 0 < self.pre_seq_len < 100
+        input_ids = torch.cat((torch.arange(1, self.pre_seq_len + 1, dtype=torch.long).unsqueeze(0).repeat(batch_size,
+                                                                                                           1).to(
+            self.bert.device), input_ids), dim=1)
+        token_type_ids = torch.cat(
+            (torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.bert.device), token_type_ids),
+            dim=1)
+
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict)
+
+        encoder_out, pooled_output = outputs[0], outputs[1]
+        output = self.transformer(encoder_out)
+        resnet = torch.cat((pooled_output, output), dim=1)
+        logits = self.classifier(resnet)
+        logits = self.dropout(logits)
+        prob = self.softmax(logits)
+
+        if labels is not None:
+            if self.rdrop:
+                from rdrop_loss import RDropLoss
+
+                loss_fct = RDropLoss(class_num=self.num_class)
+                loss = loss_fct(logits.view(-1, self.num_class), labels.view(-1))
+            else:
+                loss_fct = FocalLoss(class_num=self.num_class)
+                loss = loss_fct(logits.view(-1, self.num_class), labels.view(-1))
+            return loss
+        return logits, prob
+
+
+class BertPrefixForSequenceClassification(BertPreTrainedModel):
+    def __init__(self, config, num_class):
+        super(BertPrefixForSequenceClassification, self).__init__(config)
+        self.pre_seq_len = 8
+        self.num_class = num_class
+        self.bert = BertModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size * 2, num_class)
+        self.transformer = Transformer(max_len=358 - self.pre_seq_len, hidden_size=config.hidden_size)
         # self.gru = nn.GRU(config.hidden_size, config.hidden_size, num_layers=1, bidirectional=True)
         self.softmax = nn.Softmax(dim=-1)
         # self.apply(self.init_bert_weights)

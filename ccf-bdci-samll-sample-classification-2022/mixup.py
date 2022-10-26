@@ -3,6 +3,7 @@ from torch import nn
 import numpy as np
 import random
 import warnings
+import bert4torch
 
 
 class MixUp(nn.Module):
@@ -54,7 +55,8 @@ class MixUp(nn.Module):
             return [output, output1]
 
         elif self.method == 'encoder':
-            output = model(inputs)
+            # output = model(inputs)
+            output = model
             output1 = self.get_perm(output)
             output_final = self.mix_up(output, output1)
 
