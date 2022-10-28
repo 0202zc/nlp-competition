@@ -768,12 +768,12 @@ class BertForSequenceClassification(BertPreTrainedModel):
 class BertPrefixForPatentsClassification(BertPreTrainedModel):
     def __init__(self, config, num_class):
         super(BertPrefixForPatentsClassification, self).__init__(config)
-        self.pre_seq_len = 8
+        self.pre_seq_len = 12
         self.num_class = num_class
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size * 2, num_class)
-        self.transformer = Transformer(max_len=358 - self.pre_seq_len, hidden_size=config.hidden_size)
+        self.transformer = Transformer(max_len=342 - self.pre_seq_len, hidden_size=config.hidden_size)
         # self.gru = nn.GRU(config.hidden_size, config.hidden_size, num_layers=1, bidirectional=True)
         self.softmax = nn.Softmax(dim=-1)
         self.rdrop = True
@@ -796,7 +796,7 @@ class BertPrefixForPatentsClassification(BertPreTrainedModel):
         # past_key_values = self.get_prompt(batch_size=batch_size)
         prefix_attention_mask = torch.ones(batch_size, self.pre_seq_len).to(self.bert.device)
         attention_mask = torch.cat((prefix_attention_mask, attention_mask), dim=1)
-        # input_ids = torch.cat((torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), input_ids), dim=1)
+        # input_ids = torch.cat((torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.bert.device), input_ids), dim=1)
         assert 0 < self.pre_seq_len < 100
         input_ids = torch.cat((torch.arange(1, self.pre_seq_len + 1, dtype=torch.long).unsqueeze(0).repeat(batch_size,
                                                                                                            1).to(
