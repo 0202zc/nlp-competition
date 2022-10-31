@@ -11,7 +11,7 @@ class TransformerForPretraining(nn.Module):
         self.hidden_size = hidden_size
         self.head_nums = 8
         self.multi_head_attention = MultiHeadSelfAttention(hidden_size, hidden_size, hidden_size, self.head_nums)
-        self.fc_1 = nn.Linear(hidden_size, hidden_size)  # 将您上一层的输出转为本层的hidden_size，谢您嘞！
+        self.fc_1 = nn.Linear(hidden_size, hidden_size)
         self.fc_2 = nn.Linear(hidden_size, hidden_size * 4)
         self.fc_3 = nn.Linear(hidden_size * 4, hidden_size)
         self.fc_4 = nn.Linear(hidden_size, 2)
@@ -39,7 +39,7 @@ class TransformerForPretraining(nn.Module):
         attention = attention.transpose(1, 2)
         attention = attention.reshape(-1, self.max_len, self.hidden_size)
         """
-        attention = MultiHeadSelfAttention(self.hidden_size, self.hidden_size, self.hidden_size, self.head_nums)
+        attention = self.multi_head_attention(x)
         attention_out = self.fc_5(attention)
         attention_out = self.dropout(attention_out)
         out = self.fc_2(attention)
@@ -59,7 +59,7 @@ class Transformer(nn.Module):
         self.hidden_size = hidden_size
         self.head_nums = 8
         self.multi_head_attention = MultiHeadSelfAttention(hidden_size, hidden_size, hidden_size, self.head_nums)
-        self.fc_1 = nn.Linear(hidden_size, hidden_size)  # 将您上一层的输出转为本层的hidden_size，谢您嘞！
+        self.fc_1 = nn.Linear(hidden_size, hidden_size)
         self.fc_2 = nn.Linear(hidden_size, hidden_size * 4)
         self.fc_3 = nn.Linear(hidden_size * 4, hidden_size)
         self.fc_4 = nn.Linear(hidden_size, 2)
@@ -88,7 +88,7 @@ class Transformer(nn.Module):
         attention = attention.reshape(-1, self.max_len, self.hidden_size)
         顺序：Att --> Add --> LN --> FFN --> Add --> LN
         """
-        attention = MultiHeadSelfAttention(self.hidden_size, self.hidden_size, self.hidden_size, self.head_nums)
+        attention = self.multi_head_attention(x)
         attention_out = self.fc_5(attention)
         attention_out = self.dropout(attention_out)
         out = self.fc_2(attention)

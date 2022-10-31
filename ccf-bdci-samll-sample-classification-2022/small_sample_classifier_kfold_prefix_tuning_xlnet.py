@@ -699,7 +699,7 @@ def main():
 
                     # 正常训练
                     loss = model(input_ids=input_ids, token_type_ids=segment_ids, attention_mask=input_mask,
-                                 labels=label_ids, rdrop=True)
+                                 labels=label_ids, rdrop=False)
 
                     if n_gpu > 1:
                         loss = loss.mean()  # mean() to average on multi-gpu.
@@ -770,7 +770,7 @@ def main():
                     with torch.no_grad():
                         # with autocast():
                         tmp_eval_loss = model(input_ids=input_ids, token_type_ids=segment_ids,
-                                              attention_mask=input_mask, labels=label_ids, rdrop_loss=True)
+                                              attention_mask=input_mask, labels=label_ids, rdrop_loss=False)
                         logits, prob = model(input_ids=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
 
                     logits = logits.detach().cpu().numpy()
@@ -841,15 +841,16 @@ def main():
                                                      WEIGHTS_NAME.replace(".pth", "_") + "{}.bin".format(fold))
                     torch.save(model_to_save.state_dict(), output_model_file)
                     # torch.save(model_to_save, "./trained_models/pytorch_model_{}.bin".format(fold))
-                    
-                    resp = requests.post("https://www.autodl.com/api/v1/wechat/message/push",
-                                         json={
-                                             "token": "e353ce113e39",
-                                             "title": "小样本分类",
-                                             "name": "实验室服务器",
-                                             "content": "Epoch: " + str(num_epoch) + " Fold: " + str(fold) + " Best F1: " + str(best_f1)
-                                         })
-                    print(resp.content.decode())
+
+                    if num_epoch == int(args.num_train_epochs):
+                        resp = requests.post("https://www.autodl.com/api/v1/wechat/message/push",
+                                             json={
+                                                 "token": "e353ce113e39",
+                                                 "title": "小样本分类",
+                                                 "name": "实验室服务器",
+                                                 "content": "Epoch: " + str(num_epoch) + " Fold: " + str(fold) + " Best F1: " + str(best_f1)
+                                             })
+                        print(resp.content.decode())
 
                     if best_f1 == 1.0:
                         break
