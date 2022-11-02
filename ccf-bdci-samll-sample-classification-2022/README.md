@@ -26,6 +26,7 @@
 - `PromptClue.ipynb`：根据 PromptClue 修改的训练基线
 - `**_classifier_**.py`：某方法以及某预训练模型的训练脚本（kfold的预测已包含在该对应的训练脚本内，每一折结束后自动进行测试集的预测，生成 `test_results_*.txt`文件）
 - `**_pred_**.py`：预测脚本
+- `modeling.py`：模型的代码
 - `data/`：数据处理文件夹
   - `labels/`：各标签类别分离后的数据，用于采样
     - `split`：按策略对 `abstract` 列进行`<sep>`划分——[一种数据处理方法 - Datafountian](https://discussion.datafountain.cn/articles/detail/3622)
@@ -46,13 +47,14 @@
   - 中英文回译加入数据集、纯英文 + BertForPatents，发现使用中文回译训练集分数较高
   - 伪标签：现预测出的A榜测试集（分数0.6453）与训练集的原始分布不同，类别`0`和`4`明显偏多（参考 `data/data.ipynb` 中的柱状图）
     - 加入外部数据集，效果参考上述内容。
+  - mixup 方法，训练效果不佳，震荡
 
 - 本任务 baseline 采用的方法： 
 
   - XLNet 预训练模型
   - (有/无 BiGRU + ) Transformer Encoder
   - 5-Fold Cross-validation
-  - rdrop (focal loss) 
+  - RDropLoss (focal loss) 
   - 分层学习率 + 线性学习率预热：预训练模型参数 `1e-5`，分类层参数 `3e-5`，4 epochs，32~40 batch size 【使用两张 NVIDIA RTX A5000 显卡】
 
   - 采用伪标签的方式（`data/data.ipynb`）：利用训练集训练模型，然后模型预测测试集标签，再将这些标签**按比例策略**加入训练集
