@@ -61,7 +61,7 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         self.num_labels = num_labels
         self.config = config
         self.hidden_size = config.d_model
-        self.pre_seq_len = 6
+        self.pre_seq_len = 8
         self.post_seq_len = 0
 
         self.enable_mixup = False
@@ -73,15 +73,15 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         # self.sequence_summary = SequenceSummary(config)
         # self.logits_proj = nn.Linear(self.hidden_size, self.num_labels)
         self.softmax = nn.Softmax(dim=-1)
-        self.transformer_encoder = Transformer(max_len=486 + self.pre_seq_len + self.post_seq_len,
-                                               hidden_size=self.hidden_size)
+        self.transformer_encoder = Transformer(max_len=446 + self.pre_seq_len + self.post_seq_len,
+                                               hidden_size=self.hidden_size * 2)
         self.classifier = nn.Sequential(
-            nn.Linear(self.hidden_size * 2, self.hidden_size),
+            nn.Linear(self.hidden_size * 5, self.hidden_size),
             nn.Linear(self.hidden_size, self.hidden_size // 2),
             nn.Linear(self.hidden_size // 2, self.num_labels)
         )
         self.dropout = nn.Dropout(0.1)
-        # self.gru = nn.GRU(self.hidden_size, self.hidden_size, num_layers=1, bidirectional=True, batch_first=True)
+        self.gru = nn.GRU(self.hidden_size, self.hidden_size, num_layers=1, bidirectional=True, batch_first=True)
         # self.lstm = nn.LSTM(self.hidden_size, self.hidden_size, num_layers=1, bidirectional=True, batch_first=True)
         # self.linear2 = nn.Linear(self.hidden_size * 2, self.hidden_size)
 
@@ -115,18 +115,20 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         """
         # return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        batch_size = input_ids.shape[0]
-        # past_key_values = self.get_prompt(batch_size=batch_size)
-        prefix_attention_mask = torch.ones(batch_size, self.pre_seq_len).to(self.transformer.device)
-        attention_mask = torch.cat((prefix_attention_mask, attention_mask), dim=1)
-        # input_ids = torch.cat((torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), input_ids), dim=1)
-        assert 0 < self.pre_seq_len < 100
-        input_ids = torch.cat((torch.arange(1, self.pre_seq_len + 1, dtype=torch.long).unsqueeze(0).repeat(batch_size,
-                                                                                                           1).to(
-            self.transformer.device), input_ids), dim=1)
-        token_type_ids = torch.cat(
-            (torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), token_type_ids),
-            dim=1)
+        assert self.pre_seq_len < 100
+        if 0 < self.pre_seq_len < 100:
+            batch_size = input_ids.shape[0]
+            # past_key_values = self.get_prompt(batch_size=batch_size)
+            prefix_attention_mask = torch.ones(batch_size, self.pre_seq_len).to(self.transformer.device)
+            attention_mask = torch.cat((prefix_attention_mask, attention_mask), dim=1)
+            # input_ids = torch.cat((torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), input_ids), dim=1)
+
+            input_ids = torch.cat((torch.arange(1, self.pre_seq_len + 1, dtype=torch.long).unsqueeze(0).repeat(batch_size,
+                                                                                                               1).to(
+                self.transformer.device), input_ids), dim=1)
+            token_type_ids = torch.cat(
+                (torch.ones(batch_size, self.pre_seq_len, dtype=torch.long).to(self.transformer.device), token_type_ids),
+                dim=1)
 
         # suffix_attention_mask = torch.ones(batch_size, self.post_seq_len).to(self.transformer.device)
         # attention_mask = torch.cat((attention_mask, suffix_attention_mask), dim=1)
@@ -154,24 +156,31 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
             return_dict=return_dict,
             **kwargs,
         )
-        output = transformer_outputs[0]
+        encoder_out = transformer_outputs[0]
 
         if self.enable_mixup:
-            output = self.mixup.encode(output, [input_ids])
+            encoder_out = self.mixup.encode(encoder_out, [input_ids])
 
-        cls_embedding = output[:, self.pre_seq_len, :]
-        first_token_hidden_states = output[:, 0, :]
-        last_token_hidden_states = output[:, -1, :]
+        # self.pre_seq_len == 0 时，cls_embedding == first_token_hidden_states
+        cls_embedding = encoder_out[:, self.pre_seq_len, :]
+        first_token_hidden_states = encoder_out[:, 0, :]
+        last_token_hidden_states = encoder_out[:, -1, :]
 
         # lstm_output, _ = self.lstm(output)
         # gru_output, _ = self.gru(self.linear2(lstm_output))
-        # gru_output, _ = self.gru(output)
+        gru_output, hn = self.gru(encoder_out)
+        # hn = torch.cat(hn.split(1), dim=-1).squeeze(0)
+        # output = self.transformer_encoder(hn.unsqueeze(1))
 
-        output = self.transformer_encoder(output)
+        avg_pool = torch.mean(encoder_out, 1)
+        max_pool, _ = torch.max(encoder_out, 1)
+        output = self.transformer_encoder(gru_output)
 
         # output = self.sequence_summary(output)
         # logits = self.logits_proj(output)
-        resnet = torch.cat((first_token_hidden_states, output), dim=1)
+
+        resnet = torch.cat((avg_pool, max_pool, first_token_hidden_states, output), dim=1)
+        # resnet = torch.cat((first_token_hidden_states, output), dim=1)
         # resnet = torch.cat((first_token_hidden_states, last_token_hidden_states, output), dim=1)
         logits = self.classifier(resnet)
         logits = self.dropout(logits)
