@@ -267,6 +267,7 @@
 
 ---
 Q: 大佬 那个mask学习是指的prompt吗
+
 A: 我们不是sequence-2-sequence的方式，而是这样：
 
 ```python
