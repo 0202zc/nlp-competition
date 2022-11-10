@@ -73,7 +73,7 @@ class XLNetPrefixForSequenceClassification(XLNetPreTrainedModel):
         # self.sequence_summary = SequenceSummary(config)
         # self.logits_proj = nn.Linear(self.hidden_size, self.num_labels)
         self.softmax = nn.Softmax(dim=-1)
-        self.transformer_encoder = Transformer(max_len=446 + self.pre_seq_len + self.post_seq_len,
+        self.transformer_encoder = Transformer(max_len=450 + self.pre_seq_len + self.post_seq_len,
                                                hidden_size=self.hidden_size * 2)
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size * 5, self.hidden_size),

@@ -300,7 +300,7 @@ def main():
 
     model.eval()
     nb_eval_steps, nb_eval_examples = 0, 0
-    id = 1
+    id = 0
     probabilities = []
     results = []
     high_confidence_ids = []

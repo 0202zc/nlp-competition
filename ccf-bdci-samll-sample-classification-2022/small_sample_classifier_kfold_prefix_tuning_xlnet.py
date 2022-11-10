@@ -596,7 +596,7 @@ def main():
 
             train_loader = DataLoader(train, batch_size=args.train_batch_size, shuffle=True)
             valid_loader = DataLoader(valid, batch_size=args.train_batch_size, shuffle=False)
-            test_loader = DataLoader(test, batch_size=350, shuffle=False)
+            test_loader = DataLoader(test, batch_size=320, shuffle=False)
 
             num_train_optimization_steps = int(
                 len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
@@ -643,12 +643,31 @@ def main():
             # Prepare optimizer
             # 筛选未冻结的层进行优化
             # param_optimizer = [(k, v) for k, v in list(model.named_parameters()) if not v.requires_grad]
+
+            # 分层学习率
             param_optimizer = list(model.named_parameters())
             no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+            # optimizer_grouped_parameters = [
+            #     {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
+            #      'weight_decay': 0.01},
+            #     {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0},
+            # ]
+
+            xlnet_lr = 3e-5
+
             optimizer_grouped_parameters = [
-                {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)],
-                 'weight_decay': 0.01},
-                {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+                {'params': [j for i, j in param_optimizer if
+                            (not 'transformer' in i and not any(nd in i for nd in no_decay))],
+                 'lr': args.learning_rate, 'weight_decay': 0.01},
+                {'params': [j for i, j in param_optimizer if
+                            (not 'transformer' in i and any(nd in i for nd in no_decay))],
+                 'lr': args.learning_rate, 'weight_decay': 0.0},
+                {'params': [j for i, j in param_optimizer if
+                            ('transformer' in i and not any(nd in i for nd in no_decay))],
+                 'lr': xlnet_lr, 'weight_decay': 0.01},
+                {'params': [j for i, j in param_optimizer if
+                            ('transformer' in i and any(nd in i for nd in no_decay))],
+                 'lr': xlnet_lr, 'weight_decay': 0.0},
             ]
             if args.fp16:
                 try:
@@ -674,8 +693,8 @@ def main():
                                      t_total=num_train_optimization_steps)
 
             total_steps = int(args.num_train_epochs) * len(train_loader)
-            # ema = EMA(model, 0.999)
-            # ema.register()
+            ema = EMA(model, 0.952)
+            ema.register()
 
             num_epoch = 0
             global_step = 0
@@ -699,7 +718,7 @@ def main():
 
                     # 正常训练
                     loss = model(input_ids=input_ids, token_type_ids=segment_ids, attention_mask=input_mask,
-                                 labels=label_ids, rdrop=False)
+                                 labels=label_ids, rdrop=True)
 
                     if n_gpu > 1:
                         loss = loss.mean()  # mean() to average on multi-gpu.
@@ -725,7 +744,7 @@ def main():
                     loss_sum.backward()
                     fgm.restore()  # 恢复Embedding的参数
 
-                    # ema.update()
+                    ema.update()
 
                     tr_loss += loss.item()
                     nb_tr_examples += input_ids.size(0)
@@ -755,7 +774,7 @@ def main():
                 logger.info("***** Running  %d -th evaluation *****" % num_epoch)
                 logger.info("  Batch size = %d", args.eval_batch_size)
 
-                # ema.apply_shadow()
+                ema.apply_shadow()
                 model.eval()
                 eval_loss, eval_accuracy = 0, 0
                 nb_eval_steps, nb_eval_examples = 0, 0
@@ -770,7 +789,7 @@ def main():
                     with torch.no_grad():
                         # with autocast():
                         tmp_eval_loss = model(input_ids=input_ids, token_type_ids=segment_ids,
-                                              attention_mask=input_mask, labels=label_ids, rdrop_loss=False)
+                                              attention_mask=input_mask, labels=label_ids, rdrop_loss=True)
                         logits, prob = model(input_ids=input_ids, token_type_ids=segment_ids, attention_mask=input_mask)
 
                     logits = logits.detach().cpu().numpy()
@@ -842,15 +861,15 @@ def main():
                     torch.save(model_to_save.state_dict(), output_model_file)
                     # torch.save(model_to_save, "./trained_models/pytorch_model_{}.bin".format(fold))
 
-                    if num_epoch == int(args.num_train_epochs):
-                        resp = requests.post("https://www.autodl.com/api/v1/wechat/message/push",
-                                             json={
-                                                 "token": "e353ce113e39",
-                                                 "title": "小样本分类",
-                                                 "name": "实验室服务器",
-                                                 "content": "Epoch: " + str(num_epoch) + " Fold: " + str(fold) + " Best F1: " + str(best_f1)
-                                             })
-                        print(resp.content.decode())
+                    # if num_epoch == int(args.num_train_epochs):
+                    resp = requests.post("https://www.autodl.com/api/v1/wechat/message/push",
+                                         json={
+                                             "token": "e353ce113e39",
+                                             "title": "小样本分类",
+                                             "name": "实验室服务器",
+                                             "content": "Epoch: " + str(num_epoch) + " Fold: " + str(fold) + " Best F1: " + str(best_f1)
+                                         })
+                    print(resp.content.decode())
 
                     if best_f1 == 1.0:
                         break
@@ -922,6 +941,7 @@ def main():
                                              "content": "Fold: " + str(fold) + " 测试集预测完成"
                                          })
             print(resp.content.decode())
+            torch.cuda.empty_cache()
 
             num_epoch = 0
             global_step = 0

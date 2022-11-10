@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import functional as F
 import math
 
 
@@ -95,7 +96,66 @@ class Transformer(nn.Module):
         # out = self.dropout(out)
         return out
 
+
 # 测试
 # x = torch.randn([2,256,768])
 # net = Transformer()
 # print(net(x))
+
+
+class Attention(nn.Module):
+    """注意力层。"""
+
+    def __init__(self, hidden_size, **kwargs):
+        self.hidden_size = hidden_size
+        super().__init__(**kwargs)
+        self.weight = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+        self.bias = nn.Parameter(torch.zeros(self.hidden_size))
+        self.query = nn.Linear(self.hidden_size, 1, bias=False)
+
+    def forward(self, x, mask):
+        '''x: [btz, max_segment, hdsz]
+        mask: [btz, max_segment, 1]
+        '''
+        mask = mask.squeeze(2)  # [btz, max_segment]
+
+        # linear
+        key = self.weight(x) + self.bias  # [btz, max_segment, hdsz]
+
+        # compute attention
+        outputs = self.query(key).squeeze(2)  # [btz, max_segment]
+        outputs -= 1e32 * (1 - mask)
+        attn_scores = F.softmax(outputs, dim=-1)
+        attn_scores = attn_scores * mask
+        attn_scores = attn_scores.reshape(-1, 1, attn_scores.shape[-1])  # [btz, 1, max_segment]
+
+        outputs = torch.matmul(attn_scores, key).squeeze(1)  # [btz, hdsz]
+        return outputs
+
+
+"""
+# 定义bert上的模型结构
+class Model(BaseModel):
+    def __init__(self):
+        super().__init__()
+        self.bert = build_transformer_model(config_path=config_path, checkpoint_path=checkpoint_path, segment_vocab_size=0)
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
+        self.attn = Attention(768)
+        self.dense = nn.Linear(768, num_classes)
+
+    def forward(self, token_ids):
+        ''' token_ids: [btz, max_segment, max_len]
+        '''
+        input_mask = torch.any(token_ids, dim=-1, keepdim=True).long()  # [btz, max_segment, 1]
+        token_ids = token_ids.reshape(-1, token_ids.shape[-1])  # [btz*max_segment, max_len]
+
+        output = self.bert([token_ids])[:, 0]  # [btz*max_segment, hdsz]
+        output = output.reshape((-1, max_segment, output.shape[-1]))  # [btz, max_segment, hdsz]
+        output = output * input_mask
+        output = self.dropout1(output)
+        output = self.attn(output, input_mask)
+        output = self.dropout2(output)
+        output = self.dense(output)
+        return output
+"""

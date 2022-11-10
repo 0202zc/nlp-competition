@@ -28,10 +28,13 @@ class RDropLoss(nn.Module):
             if self.rank == 'adjacent':
                 y_pred1 = y_pred[1::2]
                 y_pred2 = y_pred[::2]
+                if len(y_pred2) > len(y_pred1):
+                    y_pred2 = y_pred2[:-1]
             elif self.rank == 'updown':
                 half_btz = y_true.shape[0] // 2
                 y_pred1 = y_pred[:half_btz]
-                y_pred2 = y_pred[half_btz:]
+                # y_pred2 = y_pred[half_btz:]
+                y_pred2 = y_pred[half_btz:half_btz * 2]
         # y_pred是两个tensor
         else:
             y_pred1, y_pred2, y_true = args
