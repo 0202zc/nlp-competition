@@ -240,7 +240,7 @@ def T5Tester(
     test_params = {
         "batch_size": model_params["TEST_BATCH_SIZE"],
         "shuffle": False,
-        "num_workers": 0
+        "num_workers": 4
     }
 
     # Creation of Dataloaders for testing and validation. This will be used down for training and validation stage for the model.

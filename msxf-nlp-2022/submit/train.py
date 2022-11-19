@@ -402,13 +402,13 @@ def T5Trainer(
     train_params = {
         "batch_size": model_params["TRAIN_BATCH_SIZE"],
         "shuffle": True,
-        "num_workers": 0,
+        "num_workers": 4,
     }
 
     val_params = {
         "batch_size": model_params["VALID_BATCH_SIZE"],
         "shuffle": False,
-        "num_workers": 0,
+        "num_workers": 4,
     }
 
     # Creation of Dataloaders for testing and validation. This will be used down for training and validation stage for the model.
