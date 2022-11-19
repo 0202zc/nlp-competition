@@ -1,0 +1,41 @@
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+LABEL version="1.0"
+
+RUN mkdir ~/.pip
+COPY pip.conf ~/.pip/
+
+RUN mkdir /usr/local/msxf2022-nlp
+
+WORKDIR /usr/local/msxf2022-nlp
+
+RUN mkdir data && mkdir outputs && mkdir outputs/prediction && \
+    mkdir pretrained_models && mkdir pretrained_models/PromptCLUE-base
+
+
+RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list && \
+    sed -i s/security.ubuntu.com/mirrors.aliyun.com/g /etc/apt/sources.list && \
+    apt update -y && apt upgrade -y
+
+RUN \
+    apt install wget -y && apt install vim -y && apt-get install python3.10 -y && apt-get install python3-pip -y && \
+    pip3 install --upgrade pip --no-cache-dir
+    
+RUN \
+    pip install torch torchvision torchaudio --no-cache-dir && \
+    pip install transformers boto3 pandas scikit-learn rouge rich jieba matplotlib sentencepiece openpyxl --no-cache-dir
+
+RUN apt-get clean -y && apt-get autoclean -y
+
+COPY data/* ./data/
+COPY run.sh ./
+COPY *.py ./
+
+RUN cd pretrained_models/PromptCLUE-base && \
+    wget https://huggingface.co/ClueAI/PromptCLUE-base/resolve/main/config.json && \
+    wget https://huggingface.co/ClueAI/PromptCLUE-base/resolve/main/spiece.model && \
+    wget https://huggingface.co/ClueAI/PromptCLUE-base/resolve/main/spiece.vocab && \
+    wget https://huggingface.co/ClueAI/PromptCLUE-base/resolve/main/tokenizer_config.json && \
+    wget https://huggingface.co/ClueAI/PromptCLUE-base/resolve/main/pytorch_model.bin && \
+    cd /usr/local/msxf2022-nlp
+    
