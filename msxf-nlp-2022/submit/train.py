@@ -6,6 +6,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 import sys
 import numpy as np
 import pandas as pd
+import argparse
 from rouge import Rouge
 import torch
 import torch.nn.functional as F
@@ -463,17 +464,54 @@ def T5Trainer(
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir",
+                        default='data/train_prompt.tsv',
+                        type=str,
+                        required=False,
+                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+    parser.add_argument("--model_dir", default="pretrained_models/PromptCLUE-base", type=str, required=False, 
+                        help="trained model for eval or predict")
+    parser.add_argument("--output_dir",
+                        default="outputs/",
+                        type=str,
+                        required=False,
+                        help="The output directory where the model predictions and checkpoints will be written.")
+    parser.add_argument("--train_batch_size",
+                        default=12,
+                        type=int,
+                        help="Total batch size for training.")
+    parser.add_argument("--eval_batch_size",
+                        default=16,
+                        type=int,
+                        help="Total batch size for eval.")
+    parser.add_argument("--learning_rate",
+                        default=2e-4,
+                        type=float,
+                        help="The initial learning rate for AdamW.")
+    parser.add_argument("--num_train_epochs",
+                        default=4,
+                        type=int,
+                        help="Total number of training epochs to perform.")
+    parser.add_argument("--do_train",
+                        action='store_true',
+                        help="Whether to run training.")
+    parser.add_argument("--do_eval",
+                        action='store_true',
+                        help="Whether to run eval on the dev set.")
+    args = parser.parse_args()
+
     # 定义模型的参数 let's define model parameters specific to T5
     model_params = {
-        "MODEL": "pretrained_models/PromptCLUE-base",
+        "MODEL": args.model_dir,
         # model_type pretrained_models/PromptCLUE-base & outputs/prompt/model_files/
-        "TRAIN_BATCH_SIZE": 12,  # training batch size, 8
-        "VALID_BATCH_SIZE": 16,  # validation batch size, 8
-        "TRAIN_EPOCHS": 4,  # number of training epochs
+        "TRAIN_BATCH_SIZE": args.train_batch_size,  # training batch size, 12
+        "VALID_BATCH_SIZE": args.eval_batch_size,  # validation batch size, 16
+        "TRAIN_EPOCHS": args.num_train_epochs,  # number of training epochs
         "VAL_EPOCHS": 1,  # number of validation epochs
-        "LEARNING_RATE": 2e-4,  # learning rate
+        "LEARNING_RATE": args.learning_rate,  # learning rate
         "MAX_SOURCE_TEXT_LENGTH": 500,  # max length of source text, 512
-        "MAX_TARGET_TEXT_LENGTH": 420,  # max length of target text,64
+        "MAX_TARGET_TEXT_LENGTH": 420,  # max length of target text, 64
         "SEED": 2022,  # set seed for reproducibility
     }
 
@@ -481,7 +519,7 @@ if __name__ == '__main__':
     # dataframe必须有2列:
     #   - input: 文本输入
     #   - target: 目标输出
-    df = pd.read_csv('data/train_prompt.tsv', sep='\t', encoding='utf8')  # 数据量：1200k数据。
+    df = pd.read_csv(args.data_dir, sep='\t', encoding='utf8')  # 数据量：205MB数据。
     print("df.head:", df.head(n=5))
     print("df.shape:", df.shape)
     # 显存占用说明：如果运行现在显存不足，请使用nvidia-smi查看显存；如果显卡多数被占用了，请重启colab程序
@@ -490,9 +528,9 @@ if __name__ == '__main__':
         source_text="input",
         target_text="target",
         model_params=model_params,
-        output_dir="outputs/",
-        train_mode=True,
-        val_mode=True
+        output_dir=args.output_dir,
+        train_mode=args.do_train,
+        val_mode=args.do_eval
     )
 
     print("Model training has finished!")

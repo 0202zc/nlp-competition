@@ -21,7 +21,7 @@ RUN \
     pip3 install --upgrade pip --no-cache-dir
     
 RUN \
-    pip install torch torchvision torchaudio --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ && \
+    pip install torch torchvision torchaudio --no-cache-dir && \
     pip install transformers boto3 pandas scikit-learn rouge rich jieba matplotlib sentencepiece openpyxl --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/
 
 RUN apt-get clean -y && apt-get autoclean -y

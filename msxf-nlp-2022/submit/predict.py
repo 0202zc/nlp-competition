@@ -2,6 +2,7 @@
 import os
 import numpy as np
 import pandas as pd
+import argparse
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
@@ -264,10 +265,29 @@ def T5Tester(
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--data_dir",
+                        default='data/testB_prompt.tsv',
+                        type=str,
+                        required=False,
+                        help="The input data dir. Should contain the .tsv files (or other data files) for the task.")
+    parser.add_argument("--model_dir", default="outputs/model_files/", type=str, required=False, 
+                        help="trained model for eval or predict")
+    parser.add_argument("--output_dir",
+                        default="outputs/prediction/",
+                        type=str,
+                        required=False,
+                        help="The output directory where the model predictions and checkpoints will be written.")
+    parser.add_argument("--test_batch_size",
+                        default=50,
+                        type=int,
+                        help="Total batch size for eval.")
+    args = parser.parse_args()
+
     # 定义模型的参数 let's define model parameters specific to T5
     model_params = {
-        "MODEL": "outputs/model_files/",  # model_type
-        "TEST_BATCH_SIZE": 50,  # training batch size
+        "MODEL": args.model_dir,  # model_type
+        "TEST_BATCH_SIZE": args.test_batch_size,  # training batch size
         "MAX_SOURCE_TEXT_LENGTH": 330,  # max length of source text
         "MAX_TARGET_TEXT_LENGTH": 420,  # max length of target text
         "SEED": 2022,  # set seed for reproducibility
@@ -277,7 +297,7 @@ if __name__ == '__main__':
     # dataframe必须有2列:
     #   - input: 文本输入
     #   - target: 目标输出
-    df = pd.read_csv('data/testB_prompt.tsv', sep='\t', encoding='utf8', header=0, names=["input"])  # 数据量：1675数据。
+    df = pd.read_csv(args.data_dir, sep='\t', encoding='utf8', header=0, names=["input"])  # 数据量：1675数据。
     print("df.head:",df.head(n=5))
     print("df.shape:",df.shape)
     # 显存占用说明：如果运行现在显存不足，请使用nvidia-smi查看显存；如果显卡多数被占用了，请重启colab程序
@@ -285,6 +305,6 @@ if __name__ == '__main__':
         dataframe=df,
         source_text="input",
         model_params=model_params,
-        output_dir="outputs/prediction/",
+        output_dir=args.output_dir,
     )
     torch.cuda.empty_cache() 

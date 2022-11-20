@@ -1,1 +1,1 @@
-docker pull nvidia/cuda:11.8.0-runtime-ubuntu22.04 && docker build -t msxf:latest . && docker run -it --name tmxk --shm-size 200m --gpus all msxf /bin/bash
+docker pull nvidia/cuda:11.8.0-runtime-ubuntu22.04 && docker build -t msxf:latest . && docker run -it --name tmxk --shm-size 4G --gpus all msxf /bin/bash
