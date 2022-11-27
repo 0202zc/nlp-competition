@@ -106,8 +106,8 @@ F1-Score
 
 ## 1. Requirements
 
-- `pytorch==1.11.0 torchvision==0.12.0 torchaudio==0.11.0`
-- `transformers>=4.21.0`
+- `pytorch==1.13.0 torchvision==0.14.0 torchaudio==0.13.0`
+- `transformers>=4.24.0`
 - `boto3`
 - `jieba`
 - `jupyter`, `jupyterlab`
@@ -120,7 +120,7 @@ F1-Score
 
 ### 2.1 训练部分
 
-- 在 `CCKS2022/` 目录下打开 `cmd`，执行 `jupyter lab`
+- 在 `ccks2022-high-quality-article-identification/` 目录下打开 `cmd`，执行 `jupyter lab`
 - 打开 `baseline.ipynb`
   - 执行继续预训练，共 27 epochs；
   - 微调训练：

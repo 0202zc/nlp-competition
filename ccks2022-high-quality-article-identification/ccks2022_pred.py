@@ -70,8 +70,6 @@ class DataProcessor(object):
             reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
             lines = []
             for line in reader:
-                if sys.version_info[0] == 2:
-                    line = unicode(line, 'utf-8')
                 lines.append(line)
             return lines
 
