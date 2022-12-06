@@ -141,3 +141,7 @@ F1-Score
 - 基于 `baseline.ipynb` 将三个模型结果进行融合
 - 然后在 `baseline.ipynb` 中，将融合结果导出为提交格式文件 `result/result.txt`
 
+### Paper
+
+- [CCKS 2022 - Evaluation Track](https://link.springer.com/book/10.1007/978-981-19-8300-9)
+  - [Liang Z, He Z, Jia P. High-Quality Article Classification Based on Named Entities of Knowledge Graph and Multi-head Attention[C]//China Conference on Knowledge Graph and Semantic Computing. Springer, Singapore, 2022: 107-119.](https://link.springer.com/chapter/10.1007/978-981-19-8300-9_12)
